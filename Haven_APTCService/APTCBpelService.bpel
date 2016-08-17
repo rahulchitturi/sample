@@ -1,0 +1,479 @@
+<?xml version = "1.0" encoding = "UTF-8" ?>
+<!--
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  Oracle JDeveloper BPEL Designer 
+  
+  Created: Wed Aug 10 10:42:06 EDT 2016
+  Author:  rahulchitturi
+  Type: BPEL 2.0 Process
+  Purpose: Empty BPEL Process
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+-->
+<process name="APTCBpelService"
+               targetNamespace="http://xmlns.oracle.com/SOA_APP/Haven_APTCService/APTCBpelService"
+               xmlns="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+               xmlns:client="http://xmlns.oracle.com/SOA_APP/Haven_APTCService/APTCBpelService"
+               xmlns:ora="http://schemas.oracle.com/xpath/extension"
+               xmlns:bpel="http://docs.oasis-open.org/wsbpel/2.0/process/executable"
+         xmlns:ns1="http://xmlns.oracle.com/pcbpel/adapter/jms/SOA_APP/Haven_APTCService/Consume_APTCReq"
+         xmlns:ns2="http://aptc.dsh.cms.gov/exchange/1.0"
+         xmlns:ns3="http://xmlns.oracle.com/pcbpel/adapter/jms/SOA_APP/Haven_APTCService/Publish_APTCResp"
+         xmlns:bpelx="http://schemas.oracle.com/bpel/extension"
+         xmlns:ns4="http://xmlns.oracle.com/FEDServices/ESB_CalculateMaxAPTC/ESB_CalculateMaxAPTC"
+         xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+         xmlns:oraext="http://www.oracle.com/XSL/Transform/java/oracle.tip.pc.services.functions.ExtFunc"
+         xmlns:bpm="http://xmlns.oracle.com/bpmn20/extensions"
+         xmlns:xp20="http://www.oracle.com/XSL/Transform/java/oracle.tip.pc.services.functions.Xpath20"
+         xmlns:hwf="http://xmlns.oracle.com/bpel/workflow/xpath"
+         xmlns:xref="http://www.oracle.com/XSL/Transform/java/oracle.tip.xref.xpath.XRefXPathFunctions"
+         xmlns:dvm="http://www.oracle.com/XSL/Transform/java/oracle.tip.dvm.LookupValue"
+         xmlns:bpws="http://schemas.xmlsoap.org/ws/2003/03/business-process/"
+         xmlns:xdk="http://schemas.oracle.com/bpel/extension/xpath/function/xdk"
+         xmlns:ids="http://xmlns.oracle.com/bpel/services/IdentityService/xpath"
+         xmlns:ldap="http://schemas.oracle.com/xpath/extension/ldap"
+         xmlns:ns5="http://hix.cms.gov/0.1/hix-core"
+         xmlns:ns6="http://niem.gov/niem/niem-core/2.0"
+         xmlns:ns7="http://aptc.dsh.cms.gov/extension/1.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns:ns8="http://hix.cms.gov/0.1/hix-ee"
+         xmlns:ns9="http://xmlns.oracle.com/DCAS_DEV5/ErrorHandlingDCASCmpService/ErrorHandlingDCASABCSImpl"
+         xmlns:ns10="http://xmlns.dhs.dc.gov/DCAS/ESB/ErrorHandlingService/V1"
+         xmlns:ns11="http://niem.gov/niem/structures/2.0">
+
+  <!-- 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+     ORCHESTRATION LOGIC                                               
+     Set of activities coordinating the flow of messages across the    
+     services integrated within this business process                  
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  -->
+  <import namespace="http://schemas.oracle.com/bpel/extension"
+          location="RuntimeFault.wsdl"
+          importType="http://schemas.xmlsoap.org/wsdl/"/>
+  <partnerLinks>
+    <partnerLink name="Consume_APTCReq"
+                 partnerLinkType="ns1:Consume_Message_plt"
+                 myRole="Consume_Message_role"/>
+    <partnerLink name="Invoke_FedAPTCProxyService"
+                 partnerLinkType="ns2:Invoke_FedAPTCProxyService"
+                 partnerRole="CalculateAPTCPortType"/>
+    <partnerLink name="Publish_APTCResp"
+                 partnerLinkType="ns3:Produce_Message_plt"
+                 partnerRole="Produce_Message_role"/>
+    <partnerLink name="InvokeErrorHandlingService"
+                 partnerLinkType="ns9:ErrorHandlingDCASABCSImpl"
+                 partnerRole="ErrorHandlingDCASABCSImplProvider"/>
+  </partnerLinks>
+  <variables>
+    <variable name="FedAptcProxyService_CalculateAPTC_InputVariable"
+              messageType="ns2:PremiumTaxCreditRqstDetail"/>
+    <variable name="FedAptcProxyService_CalculateAPTC_OutputVariable"
+              messageType="ns2:PremiumTaxCreditRspnsDetail"/>
+    <variable name="PublishFedResp_InputVariable"
+              messageType="ns3:Produce_Message_msg"/>
+    <variable name="Title" type="xsd:string"/>
+    <variable name="FaultVar" messageType="bpelx:RuntimeFaultMessage"/>
+    <variable name="InvokeErrorHandling_InputVariable"
+              messageType="ns9:ErrorHandlingDCASABCSImplRequestMessage"/>
+    <variable name="PublishErrorResponse_InputVariable"
+              messageType="ns3:Produce_Message_msg"/>
+    <variable name="ReceiveInput_InputVariable"
+              messageType="ns1:Consume_Message_msg"/>
+  </variables>
+  <faultHandlers>
+    <catch faultName="bpelx:bindingFault" faultVariable="FaultVar"
+           faultMessageType="bpelx:RuntimeFaultMessage">
+      <sequence name="Sequence2">
+        <assign name="Assign_Binding">
+          <copy>
+            <from>ora:getCompositeName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:ServiceName</to>
+          </copy>
+          <copy>
+            <from>ora:generateGUID()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:GUID</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:CompositeName</to>
+          </copy>
+          <copy>
+            <from>'ESB_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SenderID</to>
+          </copy>
+          <copy>
+            <from>'ESB'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SenderName</to>
+          </copy>
+          <copy>
+            <from>'DEV'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:EnvironmentName</to>
+          </copy>
+          <copy>
+            <from>'FED_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:TargetID</to>
+          </copy>
+          <copy>
+            <from>'HAVEN_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SourceID</to>
+          </copy>
+          <copy>
+            <from>ora:getComponentName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:Component</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeInstanceId()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:InstanceID</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.code</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorCode</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.summary</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorDesc</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.detail</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorMsg</to>
+          </copy>
+          <copy>
+            <from>'REMOTE_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorType</to>
+          </copy>
+          <copy>
+            <from>'1'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorSeverity</to>
+          </copy>
+          <copy>
+            <from>ora:getCurrentDateTime()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Footer/ns10:TimeStamp</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeErrorHandling"
+                partnerLink="InvokeErrorHandlingService"
+                portType="ns9:ErrorHandlingDCASABCSImpl" operation="process"
+                inputVariable="InvokeErrorHandling_InputVariable"
+                bpelx:invokeAsDetail="no"/>
+        <assign name="Asn_BindingErrorResp">
+          <copy>
+            <from>$FaultVar.code</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:ResponseCode</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:RequestID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:RequestID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:HavenID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:HavenID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:HavenPersonID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:HavenPersonID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:RequestNumber</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:RequestNumber</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.summary</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:ResponseDescriptionText</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.detail</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:TDSResponseDescriptionText</to>
+          </copy>
+        </assign>
+        <invoke name="PublishErrorResponse"
+                partnerLink="Publish_APTCResp"
+                portType="ns3:Produce_Message_ptt" operation="Produce_Message"
+                inputVariable="PublishErrorResponse_InputVariable"
+                bpelx:invokeAsDetail="no"/>
+      </sequence>
+    </catch>
+    <catch faultName="bpelx:remoteFault" faultVariable="FaultVar"
+           faultMessageType="bpelx:RuntimeFaultMessage">
+      <sequence name="Sequence1">
+        <assign name="Assign_Remote">
+          <copy>
+            <from>ora:generateGUID()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:GUID</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:ServiceName</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:CompositeName</to>
+          </copy>
+          <copy>
+            <from>'DEV'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:EnvironmentName</to>
+          </copy>
+          <copy>
+            <from>'FED_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:TargetID</to>
+          </copy>
+          <copy>
+            <from>'HAVEN_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SourceID</to>
+          </copy>
+          <copy>
+            <from>ora:getComponentName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:Component</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeInstanceId()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:InstanceID</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.code</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorCode</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.summary</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorDesc</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.detail</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorMsg</to>
+          </copy>
+          <copy>
+            <from>'REMOTE_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorType</to>
+          </copy>
+          <copy>
+            <from>'1'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorSeverity</to>
+          </copy>
+          <copy>
+            <from>ora:getCurrentDateTime()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Footer/ns10:TimeStamp</to>
+          </copy>
+          <copy>
+            <from>'ESB_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SenderID</to>
+          </copy>
+          <copy>
+            <from>'ESB'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SenderName</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeErrorHandling"
+                partnerLink="InvokeErrorHandlingService"
+                portType="ns9:ErrorHandlingDCASABCSImpl" operation="process"
+                inputVariable="InvokeErrorHandling_InputVariable"
+                bpelx:invokeAsDetail="no"/>
+        <assign name="Asn_RemoteErrorResp">
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:RequestID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:RequestID</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.code</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:ResponseCode</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:HavenID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:HavenID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:HavenPersonID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:HavenPersonID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:RequestNumber</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:RequestNumber</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.summary</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:ResponseDescriptionText</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.detail</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:TDSResponseDescriptionText</to>
+          </copy>
+        </assign>
+        <invoke name="PublishErrorResponse"
+                partnerLink="Publish_APTCResp"
+                portType="ns3:Produce_Message_ptt" operation="Produce_Message"
+                inputVariable="PublishErrorResponse_InputVariable"
+                bpelx:invokeAsDetail="no"/>
+      </sequence>
+    </catch>
+    <catchAll>
+      <sequence name="Sequence3">
+        <assign name="AssignFault">
+          <copy>
+            <from>ora:getFaultAsString()</from>
+            <to>$FaultVar.summary</to>
+          </copy>
+          <copy>
+            <from>ora:getFaultName()</from>
+            <to>$FaultVar.detail</to>
+          </copy>
+          <copy>
+            <from>"APTCFaultCode"</from>
+            <to>$FaultVar.code</to>
+          </copy>
+        </assign>
+        <assign name="Assign_Generic">
+          <copy>
+            <from>ora:generateGUID()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:GUID</to>
+          </copy>
+          <copy>
+            <from>'ESB_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SenderID</to>
+          </copy>
+          <copy>
+            <from>'ESB'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SenderName</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:ServiceName</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:CompositeName</to>
+          </copy>
+          <copy>
+            <from>'DEV'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:EnvironmentName</to>
+          </copy>
+          <copy>
+            <from>ora:getComponentName()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:Component</to>
+          </copy>
+          <copy>
+            <from>'FED_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:TargetID</to>
+          </copy>
+          <copy>
+            <from>'HAVEN_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:SourceID</to>
+          </copy>
+          <copy>
+            <from>ora:getCompositeInstanceId()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Header/ns10:InstanceID</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.code</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorCode</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.summary</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorDesc</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.detail</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorMsg</to>
+          </copy>
+          <copy>
+            <from>'GENERIC_01'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorType</to>
+          </copy>
+          <copy>
+            <from>'1'</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:MessageBody/ns10:ErrorSeverity</to>
+          </copy>
+          <copy>
+            <from>ora:getCurrentDateTime()</from>
+            <to>$InvokeErrorHandling_InputVariable.payload/ns10:Footer/ns10:TimeStamp</to>
+          </copy>
+        </assign>
+        <invoke name="InvokeErrorHandling"
+                partnerLink="InvokeErrorHandlingService"
+                portType="ns9:ErrorHandlingDCASABCSImpl" operation="process"
+                inputVariable="InvokeErrorHandling_InputVariable"
+                bpelx:invokeAsDetail="no"/>
+        <assign name="AssignCatchAll">
+          <copy>
+            <from>$FaultVar.code</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:ResponseCode</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:RequestID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:RequestID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:HavenID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:HavenID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:HavenPersonID</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:HavenPersonID</to>
+          </copy>
+          <copy>
+            <from>$ReceiveInput_InputVariable.body/ns5:RequestNumber</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:IRSResponse/ns5:RequestNumber</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.summary</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:ResponseDescriptionText</to>
+          </copy>
+          <copy>
+            <from>$FaultVar.detail</from>
+            <to>$PublishErrorResponse_InputVariable.body/ns7:ErrorMessageDetail/ns5:ResponseMetadata/ns5:TDSResponseDescriptionText</to>
+          </copy>
+        </assign>
+        <invoke name="PublishErrorResponse"
+                partnerLink="Publish_APTCResp"
+                portType="ns3:Produce_Message_ptt" operation="Produce_Message"
+                inputVariable="PublishErrorResponse_InputVariable"
+                bpelx:invokeAsDetail="no"/>
+      </sequence>
+    </catchAll>
+  </faultHandlers>
+  <sequence name="main">
+    <receive name="ReceiveInput" createInstance="yes"
+             partnerLink="Consume_APTCReq" portType="ns1:Consume_Message_ptt"
+             operation="Consume_Message"
+             variable="ReceiveInput_InputVariable"/>
+    <!--<assign name="AssignTitle">
+      <copy>
+        <from>concat('IncomeAmount:','$Consume_Message_InputVariable.payload/ns5:Income/ns5:IncomeAmount')</from>
+        <to>$Title</to>
+      </copy>
+    </assign>
+    <extensionActivity>
+      <bpelx:exec name="EmbeddingCompositeTitle" language="java">
+        <![CDATA[String title = "CalculateMaxAPTC : "+(String)getVariableData("Title");     
+setCompositeInstanceTitle(title);]]>
+      </bpelx:exec>
+    </extensionActivity>-->
+    <assign name="Xform_APTCReq">
+      <bpelx:annotation>
+        <bpelx:pattern patternName="bpelx:transformation"/>
+      </bpelx:annotation>
+      <copy>
+        <from>ora:doXSLTransformForDoc("xsl/Xform_APTCReq.xsl", $ReceiveInput_InputVariable.body)</from>
+        <to variable="FedAptcProxyService_CalculateAPTC_InputVariable"
+            part="parameters"/>
+      </copy>
+    </assign>
+    <invoke name="Invoke_FedAptcProxyService"
+            partnerLink="Invoke_FedAPTCProxyService"
+            portType="ns2:CalculateAPTCPortType" operation="CalculateAPTC"
+            inputVariable="FedAptcProxyService_CalculateAPTC_InputVariable"
+            outputVariable="FedAptcProxyService_CalculateAPTC_OutputVariable"
+            bpelx:invokeAsDetail="no"/>
+    <assign name="Xform_APTCResp">
+      <bpelx:annotation>
+        <bpelx:pattern patternName="bpelx:transformation"/>
+      </bpelx:annotation>
+      <copy>
+        <from>ora:doXSLTransformForDoc("xsl/Xform_APTCResp.xsl", $FedAptcProxyService_CalculateAPTC_OutputVariable.parameters, "ReceiveInput_InputVariable.body", $ReceiveInput_InputVariable.body)</from>
+        <to variable="PublishFedResp_InputVariable" part="body"/>
+      </copy>
+    </assign>
+    <invoke name="Invoke_PublishFedResp"
+            partnerLink="Publish_APTCResp" portType="ns3:Produce_Message_ptt"
+            operation="Produce_Message"
+            inputVariable="PublishFedResp_InputVariable"
+            bpelx:invokeAsDetail="no"/>
+  </sequence>
+</process>
